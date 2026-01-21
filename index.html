@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ATTENDANCE TRACKER </title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Poppins, sans-serif;
+  min-height:100vh;
+  background:radial-gradient(circle at top,#5a2ea6,#1a082f 60%,#000);
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:10px;
+}
+
+.app{
+  width:100%;
+  max-width:900px;
+  background:rgba(0,0,0,0.45);
+  border-radius:22px;
+  padding:18px;
+  box-shadow:0 0 40px rgba(0,0,0,0.7);
+  backdrop-filter:blur(8px);
+}
+
+header{text-align:center;margin-bottom:16px}
+header h1{margin:0;font-size:1.8rem;letter-spacing:1px}
+header p{margin:6px 0 0 0;font-size:0.85rem;opacity:0.8}
+
+.add{
+  display:flex;
+  gap:10px;
+  margin:14px 0;
+}
+.add input{
+  flex:1;
+  padding:12px 14px;
+  border-radius:12px;
+  border:none;
+  outline:none;
+  font-size:0.95rem;
+}
+.add button{
+  padding:12px 18px;
+  border-radius:12px;
+  border:none;
+  background:#9b5cff;
+  color:white;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.summary{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-bottom:16px;
+}
+.summary .box{
+  background:rgba(155,92,255,0.15);
+  border-radius:14px;
+  padding:10px;
+  text-align:center;
+  font-size:0.8rem;
+}
+.summary span{display:block;font-size:1.3rem;font-weight:700;margin-top:4px}
+
+.subjects{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;
+}
+
+.card{
+  background:rgba(255,255,255,0.07);
+  border-radius:18px;
+  padding:14px;
+  position:relative;
+  transition:0.2s ease;
+}
+.card:hover{transform:translateY(-3px)}
+
+.card h3{margin:0 0 6px 0;font-size:1rem}
+.stats{font-size:0.8rem;opacity:0.85;margin-bottom:8px}
+
+.progress{
+  width:100%;height:7px;
+  background:rgba(255,255,255,0.15);
+  border-radius:10px;
+  overflow:hidden;
+  margin-bottom:10px;
+}
+.progress div{
+  height:100%;
+  background:linear-gradient(90deg,#9b5cff,#d6b4ff);
+  width:0%;
+  transition:0.3s ease;
+}
+
+.actions{display:flex;gap:8px}
+.actions button{
+  flex:1;
+  padding:8px 0;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+  font-size:0.75rem;
+  font-weight:500;
+}
+.present{background:#2ecc71;color:#000}
+.absent{background:#e74c3c;color:white}
+
+.delete{
+  position:absolute;
+  top:8px;right:10px;
+  cursor:pointer;
+  font-size:0.85rem;
+  opacity:0.6;
+}
+.delete:hover{opacity:1}
+
+.ai{
+  margin-top:18px;
+  background:rgba(155,92,255,0.15);
+  border-radius:16px;
+  padding:14px;
+  text-align:center;
+}
+.ai h2{margin:0 0 6px 0;font-size:1.05rem}
+.ai p{margin:0;font-size:0.85rem;opacity:0.9}
+
+.undo{
+  position:fixed;
+  bottom:14px;
+  left:50%;
+  transform:translateX(-50%);
+  background:black;
+  color:white;
+  padding:10px 14px;
+  border-radius:14px;
+  display:none;
+  gap:10px;
+  align-items:center;
+  box-shadow:0 8px 18px rgba(0,0,0,0.6);
+}
+.undo button{
+  background:#9b5cff;
+  border:none;
+  color:white;
+  padding:6px 10px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+footer{text-align:center;margin-top:12px;font-size:0.7rem;opacity:0.6}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>AttendFlow</h1>
+    <p></p>
+  </header>
+
+  <div class="add">
+    <input id="subjectInput" placeholder="Enter subject name">
+    <button onclick="addSubject()">Add</button>
+  </div>
+
+  <div class="summary">
+    <div class="box">Subjects<span id="subCount">0</span></div>
+    <div class="box">Overall<span id="overallPercent">0%</span></div>
+    <div class="box">Classes<span id="overallTotal">0</span></div>
+  </div>
+
+  <div class="subjects" id="subjects"></div>
+
+  <div class="ai" id="aiBox">
+    <h2> SK PERSONAL ADVICE </h2>
+    <p>Add subjects to get advice.</p>
+  </div>
+
+  <footer></footer>
+</div>
+
+<div class="undo" id="undoBar">
+  <span id="undoText"></span>
+  <button onclick="undoLast()">Undo</button>
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem('purpleAttendance')) || [];
+let lastAction = null;
+
+function save(){
+  localStorage.setItem('purpleAttendance', JSON.stringify(data));
+}
+
+function addSubject(){
+  const name = subjectInput.value.trim();
+  if(name === '') return;
+  data.push({name:name, present:0, total:0});
+  subjectInput.value='';
+  save();
+  render();
+}
+
+function mark(index,type){
+  lastAction = {index:index, before: JSON.parse(JSON.stringify(data[index]))};
+
+  data[index].total++;
+  if(type==='present') data[index].present++;
+
+  showUndo('Marked '+type+' for '+data[index].name);
+  save();
+  render();
+}
+
+function removeSubject(index){
+  lastAction = {type:'delete', index:index, subject:data[index]};
+  data.splice(index,1);
+  showUndo('Deleted subject');
+  save();
+  render();
+}
+
+function undoLast(){
+  if(!lastAction) return;
+
+  if(lastAction.type==='delete'){
+    data.splice(lastAction.index,0,lastAction.subject);
+  }else{
+    data[lastAction.index]=lastAction.before;
+  }
+
+  lastAction=null;
+  hideUndo();
+  save();
+  render();
+}
+
+function showUndo(text){
+  undoText.innerText=text;
+  undoBar.style.display='flex';
+  setTimeout(hideUndo,6000);
+}
+
+function hideUndo(){undoBar.style.display='none'}
+
+function render(){
+  subjects.innerHTML='';
+  let p=0,t=0;
+
+  data.forEach((s,i)=>{
+    p+=s.present;
+    t+=s.total;
+
+    const percent = s.total===0?0:Math.round((s.present/s.total)*100);
+
+    const card = document.createElement('div');
+    card.className='card';
+
+    card.innerHTML = `
+      <div class="delete" onclick="removeSubject(${i})">✖</div>
+      <h3>${s.name}</h3>
+      <div class="stats">${s.present}/${s.total} • ${percent}%</div>
+      <div class="progress"><div style="width:${percent}%"></div></div>
+      <div class="actions">
+        <button class="present" onclick="mark(${i},'present')">Present</button>
+        <button class="absent" onclick="mark(${i},'absent')">Absent</button>
+      </div>
+    `;
+
+    subjects.appendChild(card);
+  });
+
+  updateSummary(p,t);
+  updateAI(p,t);
+}
+
+function updateSummary(p,t){
+  subCount.innerText=data.length;
+  overallTotal.innerText=t;
+  overallPercent.innerText = t===0?'0%':Math.round((p/t)*100)+'%';
+}
+
+function updateAI(p,t){
+  if(t===0){aiBox.querySelector('p').innerText='Add subjects for my personal advice 😁';return;}
+  const percent=Math.round((p/t)*100);
+  let msg='';
+  if(percent>=85) msg=`Attendance ${percent}% — YESSS SKIppppppp 😁`;
+  else if(percent>=75) msg=`Attendance ${percent}% — You can skip 😁`;
+  else msg=`Attendance ${percent}% — CLass kuu podaaaaa 😭`;
+  aiBox.querySelector('p').innerText=msg;
+}
+
+render();
+</script>
+</body>
+</html>
